@@ -371,7 +371,7 @@ int main(int argc, char ** argv) {
             if (!eb_params.gpu_sampling) {
                 LOG_INF("diffusion_eb: gpu sample reduce off (needs --diffusion-gpu-sampling on / sc_dev)\n");
             } else if (gpu_devs != 1) {
-                LOG_INF("diffusion_eb: gpu sample reduce off (%d GPUs; needs a single CUDA device)\n", gpu_devs);
+                LOG_INF("diffusion_eb: gpu sample reduce off (%d GPUs; needs a single GPU device)\n", gpu_devs);
             }
         }
 

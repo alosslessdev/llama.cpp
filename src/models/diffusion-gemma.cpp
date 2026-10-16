@@ -651,10 +651,11 @@ void llama_diffusion_set_device_sc(struct llama_model * model, bool enabled) {
     dm->sc_device_resident = enabled;
 }
 
-// Stage-1 device sampling entry. Fetches the CUDA backend's dense sampler via the backend-reg proc address
-// (keeps the llama<->ggml-cuda link at the existing backend boundary) and runs it on sc_dev. Returns false
-// for non-DiffusionGemma / no sc_dev / non-CUDA(/ROCm/MUSA) builds so the caller falls back to the host path.
-typedef bool (*dg_cuda_sample_fn)(struct ggml_tensor *, const float *, int *, float *, int *, int, float);
+// Stage-1 device sampling entry. Fetches the owning backend's dense sampler via the backend-reg proc
+// address (keeps the llama<->backend link at the existing backend boundary) and runs it on sc_dev. Returns
+// false for non-DiffusionGemma / no sc_dev / non-CUDA(/ROCm/MUSA/SYCL) builds so the caller falls back to
+// the host path.
+typedef bool (*dg_sample_fn)(struct ggml_tensor *, const float *, int *, float *, int *, int, float);
 
 bool llama_diffusion_device_sample(const struct llama_model * model, const float * u, int * argmax,
                                    float * entropy, int * sampled, int n_tokens, float inv_temp) {
@@ -662,17 +663,27 @@ bool llama_diffusion_device_sample(const struct llama_model * model, const float
     if (!dm || dm->sc_dev == nullptr || !u || !argmax || !entropy || !sampled || n_tokens <= 0) {
         return false;
     }
-    // The ggml-cuda backend registers under a build-specific name (CUDA / ROCm / MUSA) but exports the same
-    // diffusion-sample proc address from a single source, so probe all three to reach the device sampler on
-    // HIP and MUSA builds too.
-    ggml_backend_reg_t reg = ggml_backend_reg_by_name("CUDA");
-    if (!reg) { reg = ggml_backend_reg_by_name("ROCm"); }
-    if (!reg) { reg = ggml_backend_reg_by_name("MUSA"); }
-    if (!reg) {
-        return false;
-    }
-    static dg_cuda_sample_fn fn =
-        (dg_cuda_sample_fn) ggml_backend_reg_get_proc_address(reg, "ggml_backend_cuda_diffusion_sample");
+    // ggml backends register under build-specific names (CUDA / ROCm / MUSA share one source; SYCL ships
+    // its own port), but all export the same dense-sampler signature, so probe every reg+proc pair until
+    // one resolves - this also reaches HIP and MUSA builds.
+    static dg_sample_fn fn = []() -> dg_sample_fn {
+        static const struct { const char * reg; const char * proc; } probes[] = {
+            { "CUDA", "ggml_backend_cuda_diffusion_sample" },
+            { "ROCm", "ggml_backend_cuda_diffusion_sample" },
+            { "MUSA", "ggml_backend_cuda_diffusion_sample" },
+            { "SYCL", "ggml_backend_sycl_diffusion_sample" },
+        };
+        for (const auto & p : probes) {
+            ggml_backend_reg_t reg = ggml_backend_reg_by_name(p.reg);
+            if (!reg) {
+                continue;
+            }
+            if (auto f = (dg_sample_fn) ggml_backend_reg_get_proc_address(reg, p.proc)) {
+                return f;
+            }
+        }
+        return nullptr;
+    }();
     if (!fn) {
         return false;
     }

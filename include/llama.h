@@ -617,8 +617,9 @@ extern "C" {
     // directly from the device SC buffer (sc_dev), removing the per-step full-canvas logits download + host
     // reductions. u is [n_tokens] host pre-drawn uniforms (the host RNG stream, for reproducibility); argmax,
     // entropy, sampled are [n_tokens] host outputs. Caller MUST llama_synchronize(ctx) first. Requires a
-    // single CUDA device + device-resident SC on. Returns false (caller falls back to the host path) when
-    // unavailable. argmax matches the host bit-for-bit; entropy/sampled differ only by FP reduction order.
+    // single GPU device (CUDA / ROCm / MUSA / SYCL) + device-resident SC on. Returns false (caller falls
+    // back to the host path) when unavailable. argmax matches the host bit-for-bit; entropy/sampled differ
+    // only by FP reduction order.
     LLAMA_API bool llama_diffusion_device_sample(
             const struct llama_model * model,
                        const float   * u,

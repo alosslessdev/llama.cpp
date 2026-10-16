@@ -59,6 +59,7 @@
 #include "ggml-sycl/add-id.hpp"
 #include "ggml-sycl/backend.hpp"
 #include "ggml-sycl/common.hpp"
+#include "ggml-sycl/diffusion-sampling.hpp"
 #include "ggml-sycl/element_wise.hpp"
 #include "ggml-sycl/fwht.hpp"
 #include "ggml-sycl/fused-gemm.hpp"
@@ -7504,6 +7505,11 @@ static void *ggml_backend_sycl_reg_get_proc_address(ggml_backend_reg_t reg, cons
     }
     if (strcmp(name, "ggml_backend_comm_allreduce_tensor") == 0) {
         return (void *)ggml_backend_sycl_comm_allreduce_tensor;
+    }
+
+    // Stage-1 dense sampler for DiffusionGemma (see ggml-sycl/diffusion-sampling.hpp).
+    if (strcmp(name, "ggml_backend_sycl_diffusion_sample") == 0) {
+        return (void *)ggml_sycl_diffusion_sample;
     }
 
     // SYCL doesn't support registering host memory, left here for reference
