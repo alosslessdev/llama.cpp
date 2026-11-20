@@ -4476,6 +4476,18 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         [](common_params & params, int value) { params.diffusion.blocks = value; }
     ).set_examples({ LLAMA_EXAMPLE_DIFFUSION }));
     add_opt(common_arg(
+        {"--diffusion-ctx-headroom"}, "N",
+        string_format("context headroom added above the canvas blocks when sizing -ub/-b/-c (default: %d)\n"
+                      "each position costs n_vocab*4 bytes of logits buffer, so lower it on small-VRAM cards",
+                      params.diffusion.ctx_headroom),
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("invalid value");
+            }
+            params.diffusion.ctx_headroom = value;
+        }
+    ).set_examples({ LLAMA_EXAMPLE_DIFFUSION }));
+    add_opt(common_arg(
         {"--diffusion-visual"},
         string_format("enable visual diffusion mode (show progressive generation) (default: %s)", params.diffusion.visual_mode ? "true" : "false"),
         [](common_params & params) { params.diffusion.visual_mode = true; }

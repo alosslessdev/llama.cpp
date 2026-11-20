@@ -432,6 +432,11 @@ struct common_params_diffusion {
     int32_t eb_kv_cache      = 0;     // prefix KV cache: 0=auto (on for single-GPU canvas), 1=on, 2=off
     int32_t eb_gpu_sampling  = 0;     // device-resident SC: 0=auto (on for single-GPU canvas), 1=on, 2=off
     int32_t eb_gpu_sample_reduce = 0; // Stage-1 device argmax/entropy/sample reduction: 0=auto (on for single-GPU), 1=on, 2=off
+
+    // context headroom added on top of the canvas blocks by the CLI when it auto-sizes -ub / -b / -c.
+    // Every extra ubatch position costs n_vocab * 4 bytes of logits buffer, so on small-VRAM cards this is
+    // the difference between a 2.7 GiB compute buffer and a 0.6 GiB one.
+    int32_t ctx_headroom     = 2048;
 };
 
 // reasoning API response format (not to be confused as chat template's reasoning format)

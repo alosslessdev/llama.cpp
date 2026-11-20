@@ -203,7 +203,7 @@ int main(int argc, char ** argv) {
     if (canvas_length > 0 && params.n_predict > 0) {
         const int32_t cl     = (int32_t) canvas_length;
         const int32_t blocks = (params.n_predict + cl - 1) / cl;
-        const int32_t needed = blocks * cl + 2048;  // + headroom for the prompt / chat history
+        const int32_t needed = blocks * cl + params.diffusion.ctx_headroom;  // + headroom for the prompt / chat history
         params.diffusion.blocks = blocks;
         params.n_ubatch = std::max(params.n_ubatch, needed);
         params.n_batch  = std::max(params.n_batch,  params.n_ubatch);

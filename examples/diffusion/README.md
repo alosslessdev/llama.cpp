@@ -42,6 +42,17 @@ Choose one of the following scheduling methods:
 - `-c`: Context size
 - `-b`: Batch size
 
+### Memory and context sizing
+For canvas models the CLI derives the block count from `-n` and grows `-ub`/`-b`/`-c` to hold `[prompt | canvas]`
+in one pass, adding `--diffusion-ctx-headroom` positions (default: 2048) for prompt and chat history. Every
+ubatch position costs `n_vocab * 4` bytes of logits buffer, so on small-VRAM cards lower the headroom (for
+example `--diffusion-ctx-headroom 256`).
+
+MoE weights are placed independently of `-ngl` with `-ncmoe N` (keep the experts of the first N layers on the
+CPU), `-cmoe` (all experts on the CPU) or `-ot <pattern>=<buffer>`. The CPU-resident experts are computed on
+the CPU for the tokens that route to them; they are never moved into VRAM, so VRAM holds the non-expert
+tensors plus the experts of the layers you leave on the GPU.
+
 ### Examples
 #### Dream architecture:
 ```
