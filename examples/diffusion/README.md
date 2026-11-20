@@ -68,3 +68,18 @@ llama-diffusion-cli -m llada-8b.gguf -p "write code to train MNIST in pytorch" -
 ```
 llama-diffusion-cli -m RND1-Base-0910.gguf -p "write code to train MNIST in pytorch" -ub 512 --diffusion-algorithm 1 --diffusion-steps 256 --diffusion-visual --temp 0.5 --diffusion-eps 0.001
 ```
+
+#### DiffusionGemma 26B-A4B on a 6 GiB card (MoE expert offload):
+```
+llama-diffusion-cli -m diffusiongemma-26B-A4B-it-Q4_K_M.gguf \
+  -ngl 99 -ncmoe 28 -t 12 -n 256 --diffusion-ctx-headroom 256 \
+  -p "What is a diffusion language model? Answer in three sentences."
+```
+The Q4_K_M file is 14.1 GiB of expert weights and 1.6 GiB of everything else, so the experts of 28 of the
+30 layers stay in host RAM (mmap) with `-ncmoe 28`. What has to fit in VRAM: 1.55 GiB of non-expert weights,
+the 1.44 GiB F16 self-conditioning embedding, the 0.25 GiB canvas-logits buffer and the compute buffers
+(~0.5 GiB at `-n 256`). Two expert layers fit; `-ncmoe 27` OOMs on 6 GiB.
+
+CPU-resident experts are not staged into VRAM: the router picks the active experts (8 of 128) and the CPU
+computes only those rows, but every expert tensor keeps living in host RAM. Expect CPU-bound throughput
+(~2 s per denoising step on 12 threads); the win is that the model runs at all on a 6 GiB card.
